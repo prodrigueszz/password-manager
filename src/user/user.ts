@@ -1,28 +1,21 @@
-import { v1 as uuidv1 } from "uuid";
-
 export class User {
   private constructor(
-    private id: string,
     private name: string,
     private email: string,
-    private password: string
+    private password: string,
+    private id?: string
   ) {}
 
-  public static create(name: string, email: string, password: string) {
-    const newId = uuidv1();
-    return new User(newId, name, email, password);
-  }
-
   public static build(
-    id: string,
     name: string,
     email: string,
-    password: string
+    password: string,
+    id?: string
   ) {
-    return new User(id, name, email, password);
+    return new User(name, email, password, id);
   }
 
-  getId(): string {
+  getId(): string | undefined {
     return this.id;
   }
 
