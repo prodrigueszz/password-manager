@@ -1,7 +1,10 @@
 import { User } from "./user";
-
-export type userId = string;
+import { DeleteUserDTO, UpdateUserDTO } from "./user.dto";
 
 export interface UserRepository {
-  save(user: User): Promise<userId>;
+  save(user: User): Promise<string>;
+  getUserByEmail(email: string): Promise<User | null>;
+  getUserById(id: string): Promise<User | null>; 
+  updateUserById(id: string, data: UpdateUserDTO): Promise<User | null>;
+  deleteUserById(id: string): Promise<DeleteUserDTO>;
 }
