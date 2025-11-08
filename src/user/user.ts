@@ -1,33 +1,43 @@
-export class User {
-  private constructor(
-    private name: string,
-    private email: string,
-    private password: string,
-    private id?: string
-  ) {}
+export type UserProps = {
+  name: string,
+  email: string,
+  password: string,
+  id?: string
+}
 
-  public static build(
+export class User {
+  private constructor(private props: UserProps) {}
+
+  public static build(  
     name: string,
     email: string,
     password: string,
-    id?: string
+    id: string
   ) {
-    return new User(name, email, password, id);
+    return new User({ name, email, password, id });
   }
 
-  getId(): string | undefined {
-    return this.id;
+  public static create(
+    name: string,
+    email: string,
+    password: string
+  ) {
+    return new User({ name, email, password });
   }
 
-  getName(): string {
-    return this.name;
+  get id() {
+    return this.props.id;
+  }  
+
+  get name() {
+    return this.props.name;
   }
 
-  getEmail(): string {
-    return this.email;
+  get email() {
+    return this.props.email;
   }
 
-  getPassword(): string {
-    return this.password;
+  get password() {
+    return this.props.email;
   }
 }

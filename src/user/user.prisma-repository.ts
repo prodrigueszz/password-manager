@@ -1,4 +1,5 @@
 import { PrismaClient } from "../generated/prisma/internal/class";
+import { PrismaClientKnownRequestError } from "../generated/prisma/internal/prismaNamespace";
 import { User } from "./user";
 import { DeleteUserDTO, UpdateUserDTO } from "./user.dto";
 import { UserRepository } from "./user.repository";
@@ -8,9 +9,9 @@ export class PrismaUserRepository implements UserRepository {
 
   async save(user: User): Promise<string> {
     const data = {
-      name: user.getName(),
-      email: user.getEmail(),
-      password: user.getPassword(),
+      name: user.name,
+      email: user.email,
+      password: user.password,
     };
 
     const { id } = await this.prisma.user.create({
@@ -43,7 +44,7 @@ export class PrismaUserRepository implements UserRepository {
     });
 
     if (!userData) {
-      return null;
+      return userData;
     }
 
     const { name, email, password } = userData;
@@ -52,14 +53,21 @@ export class PrismaUserRepository implements UserRepository {
   }
 
   async updateUserById(id: string, data: UpdateUserDTO): Promise<User | null> {
-    const updatedUserData = await this.prisma.user.update({
-      where: { id },
-      data: data,
-    });
-    
-    const { name, email, password } = updatedUserData;
-    const updatedUser = User.build(id, name, email, password);
-    return updatedUser;
+    try {
+      const updatedUserData = await this.prisma.user.update({
+        where: { id },
+        data,
+      });
+      const { name, email, password } = updatedUserData;
+      const updatedUser = User.build(id, name, email, password);
+      return updatedUser;
+    } catch (error) {
+      if (error instanceof PrismaClientKnownRequestError) {
+        throw error;
+      }
+    }
+
+    return null
   }
 
   async deleteUserById(id: string): Promise<DeleteUserDTO> {
