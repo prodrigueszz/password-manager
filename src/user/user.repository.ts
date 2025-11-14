@@ -1,10 +1,11 @@
 import { User } from "./user";
-import { DeleteUserDTO, UpdateUserDTO } from "./user.dto";
+import { DeleteUserDTO, UpdateUserInputDTO, UpdateUserOutputDTO } from "./user.dto";
 
 export interface UserRepository {
   save(user: User): Promise<string>;
-  getUserByEmail(email: string): Promise<User | null>;
-  getUserById(id: string): Promise<User | null>; 
-  updateUserById(id: string, data: UpdateUserDTO): Promise<User | null>;
+  getByEmail(email: string): Promise<User | null>;
+  getById(id: string): Promise<User | null>; 
+  getAllUsers(): Promise<User[]>;
+  updateUserById(id: string, data: UpdateUserInputDTO): Promise<UpdateUserOutputDTO | null>;
   deleteUserById(id: string): Promise<DeleteUserDTO>;
 }

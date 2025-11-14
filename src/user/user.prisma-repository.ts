@@ -1,7 +1,7 @@
 import { PrismaClient } from "../generated/prisma/internal/class";
 import { PrismaClientKnownRequestError } from "../generated/prisma/internal/prismaNamespace";
 import { User } from "./user";
-import { DeleteUserDTO, UpdateUserDTO } from "./user.dto";
+import { DeleteUserDTO, UpdateUserInputDTO, UpdateUserOutputDTO } from "./user.dto";
 import { UserRepository } from "./user.repository";
 
 export class PrismaUserRepository implements UserRepository {
@@ -20,7 +20,7 @@ export class PrismaUserRepository implements UserRepository {
     return id;
   }
 
-  async getUserByEmail(email: string): Promise<User | null> {
+  async getByEmail(email: string): Promise<User | null> {
     const userData = await this.prisma.user.findUnique({
       where: {
         email,
@@ -36,11 +36,11 @@ export class PrismaUserRepository implements UserRepository {
     return user;
   }
 
-  async getUserById(id: string): Promise<User | null> {
+  async getById(id: string): Promise<User | null> {
     const userData = await this.prisma.user.findUnique({
       where: {
         id,
-      },
+      }
     });
 
     if (!userData) {
@@ -52,15 +52,23 @@ export class PrismaUserRepository implements UserRepository {
     return user;
   }
 
-  async updateUserById(id: string, data: UpdateUserDTO): Promise<User | null> {
+  async getAllUsers(): Promise<User[]> {
+    const usersData = await this.prisma.user.findMany();
+    
+    return usersData.map(userData => {
+      const { id, name, email, password } = userData;
+      return User.build(name, email, password, id);
+    });
+  }
+
+  async updateUserById(id: string, data: UpdateUserInputDTO): Promise<UpdateUserOutputDTO | null> {
     try {
       const updatedUserData = await this.prisma.user.update({
         where: { id },
-        data,
+        data
       });
-      const { name, email, password } = updatedUserData;
-      const updatedUser = User.build(id, name, email, password);
-      return updatedUser;
+      const { name, email } = updatedUserData;
+      return { name, email };
     } catch (error) {
       if (error instanceof PrismaClientKnownRequestError) {
         throw error;

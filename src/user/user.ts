@@ -38,6 +38,6 @@ export class User {
   }
 
   get password() {
-    return this.props.email;
+    return this.props.password;
   }
 }
