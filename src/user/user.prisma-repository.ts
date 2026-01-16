@@ -1,3 +1,4 @@
+import { Role } from "../generated/prisma/enums";
 import { PrismaClient } from "../generated/prisma/internal/class";
 import { PrismaClientKnownRequestError } from "../generated/prisma/internal/prismaNamespace";
 import { User } from "./user";
@@ -12,6 +13,8 @@ export class PrismaUserRepository implements UserRepository {
       name: user.name,
       email: user.email,
       password: user.password,
+      role: Role.USUARIO,
+      master_key_salt: user.masterKeySalt,
     };
 
     const { id } = await this.prisma.user.create({
@@ -31,8 +34,8 @@ export class PrismaUserRepository implements UserRepository {
       return userData;
     }
 
-    const { id, name, password } = userData;
-    const user = User.build(name, email, password, id);
+    const { id, name, password, role, master_key_salt } = userData;
+    const user = User.build(id, name, email, password, role, master_key_salt);
     return user;
   }
 
@@ -40,32 +43,44 @@ export class PrismaUserRepository implements UserRepository {
     const userData = await this.prisma.user.findUnique({
       where: {
         id,
-      }
+      },
     });
 
     if (!userData) {
       return userData;
     }
 
-    const { name, email, password } = userData;
-    const user = User.build(name, email, password, id);
+    const { name, email, password, role, master_key_salt } = userData;
+    const user = User.build(id, name, email, password, role, master_key_salt);
     return user;
   }
 
   async getAllUsers(): Promise<User[]> {
     const usersData = await this.prisma.user.findMany();
-    
-    return usersData.map(userData => {
-      const { id, name, email, password } = userData;
-      return User.build(name, email, password, id);
+
+    return usersData.map((userData) => {
+      const { id, name, email, password, role, master_key_salt } = userData;
+      return User.build(id, name, email, password, role, master_key_salt);
     });
   }
 
   async updateUserById(id: string, data: UpdateUserInputDTO): Promise<UpdateUserOutputDTO | null> {
     try {
+      const updateData: Record<string, string> = {};
+
+      if (data.name !== undefined) {
+        updateData.name = data.name;
+      }
+      if (data.email !== undefined) {
+        updateData.email = data.email;
+      }
+      if (data.password !== undefined) {
+        updateData.password = data.password;
+      }
+
       const updatedUserData = await this.prisma.user.update({
         where: { id },
-        data
+        data: updateData,
       });
       const { name, email } = updatedUserData;
       return { name, email };
@@ -75,7 +90,7 @@ export class PrismaUserRepository implements UserRepository {
       }
     }
 
-    return null
+    return null;
   }
 
   async deleteUserById(id: string): Promise<DeleteUserDTO> {
@@ -89,6 +104,7 @@ export class PrismaUserRepository implements UserRepository {
       id,
       name: output.name,
       email: output.email,
+      role: output.role,
     };
 
     return deletedUserData;

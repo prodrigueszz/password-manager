@@ -1,73 +1,141 @@
 import { Request, Response } from "express";
 import { SecretService } from "./secret.service";
-import { deleteSecretSchema, getSecretSchema, updateSecretSchema } from "./secret.schema";
+import { createSecretSchema, deleteSecretSchema, getSecretSchema, updateSecretSchema } from "./secret.schema";
 import z from "zod";
+import { CryptoService } from "../crypto/crypto.service";
+import { UserService } from "../user/user.service";
 
 export class SecretController {
-  constructor(private secretService: SecretService){}
+  constructor(
+    private secretService: SecretService,
+    private userService: UserService
+  ) {}
 
-  async handleCreateSecret(req: Request, res: Response) {
-    const { site, login_identifier, password, owner_id } = req.body;
-
-    const output = await this.secretService.saveNewSecret({ 
-      site, 
-      login_identifier, 
-      password, 
-      owner_id
-    });
-
-    res.status(201).json({
-      status: "success",
-      data: {
-        id: output.id
-      }
-    })
-  }
-
-  async handleFindSecret(req: Request, res: Response) {
-    const result = await getSecretSchema.safeParseAsync({
+  async createSecret(req: Request, res: Response) {
+    const result = await createSecretSchema.safeParseAsync({
+      params: req.params,
       body: req.body,
-      params: req.params
     });
 
     if (!result.success) {
-      const error = z.treeifyError(result.error)
+      const error = z.treeifyError(result.error);
 
       return res.status(400).json({
         status: "fail",
-        data: error.properties
-      })
+        data: error.properties,
+      });
     }
 
-    const owner_id = result.data.params.id;
+    const userData = await this.userService.findUserById(result.data.params.ownerId);
+
+    if (!userData) {
+      return res.status(404).json({
+        status: "fail",
+        data: {
+          message: "Usuário não encontrado",
+        },
+      });
+    }
+
+    const encryptedData = await CryptoService.encrypt(
+      result.data.body.passwordToEncrypt,
+      result.data.body.masterPassword,
+      userData.masterKeySalt
+    );
+
+    const output = await this.secretService.saveNewSecret({
+      site: result.data.body.site,
+      loginIdentifier: result.data.body.loginIdentifier,
+      ciphertext: encryptedData.ciphertext,
+      iv: encryptedData.iv,
+      authTag: encryptedData.authTag,
+      ownerId: userData.id,
+    });
+
+    return res.status(201).json({
+      status: "success",
+      data: {
+        id: output.id,
+      },
+    });
+  }
+
+  async findSecret(req: Request, res: Response) {
+    const result = await getSecretSchema.safeParseAsync({
+      body: req.body,
+      params: req.params,
+    });
+
+    if (!result.success) {
+      const error = z.treeifyError(result.error);
+
+      return res.status(400).json({
+        status: "fail",
+        data: error.properties,
+      });
+    }
+
+    const ownerId = result.data.params.ownerId;
 
     if (result.data.body) {
-      const site = result.data.body.site;
+      const { site, masterPassword } = result.data.body;
+
       const output = await this.secretService.findSecret({
-        owner_id,
-        site
-      })
+        ownerId,
+        site,
+      });
+
+      if (!output || Array.isArray(output)) {
+        return res.status(404).json({
+          status: "fail",
+          data: { message: "Não foi possível encontrar a senha desejada" },
+        });
+      }
+
+      const userData = await this.userService.findUserById(ownerId);
+
+      if (!userData) {
+        return res.status(404).json({
+          status: "fail",
+          data: { message: "Usuário não encontrado" },
+        });
+      }
+
+      const decryptedPassword = await CryptoService.decrypt(
+        {
+          ciphertext: output.ciphertext,
+          iv: output.iv,
+          authTag: output.authTag,
+        },
+        masterPassword,
+        userData.masterKeySalt
+      );
 
       return res.status(200).json({
         status: "success",
-        data: output
-      })
+        data: {
+          id: output.id,
+          site: output.site,
+          loginIdentifier: output.loginIdentifier,
+          password: decryptedPassword,
+        },
+      });
     }
 
     const output = await this.secretService.findSecret({
-      owner_id
-    })
+      ownerId,
+    });
 
     return res.status(200).json({
       status: "success",
-      data: output
-    })
+      data: output,
+    });
   }
 
-  async handleDeleteSecret(req: Request, res: Response) {
+  async deleteSecret(req: Request, res: Response) {
     const result = await deleteSecretSchema.safeParseAsync({
       body: req.body,
-      params: req.params
+      params: req.params,
     });
 
     if (!result.success) {
@@ -75,36 +143,36 @@ export class SecretController {
 
       return res.status(400).json({
         status: "fail",
-        data: error.properties
-      })
+        data: error.properties,
+      });
     }
 
-    const owner_id = result.data.params.id;
+    const ownerId = result.data.params.ownerId;
     const id = result.data.body.id;
 
-    await this.secretService.deleteSecret({ owner_id, id });
+    await this.secretService.deleteSecret({ ownerId, id });
 
     return res.status(200).json({
       status: "success",
       data: {
-        message: `Secret with id < ${id} > was deleted`
-      }
-    })
+        message: `Secret with id < ${id} > was deleted`,
+      },
+    });
   }
 
-  async handleUpdateSecret(req: Request, res: Response) {
+  async updateSecret(req: Request, res: Response) {
     const result = await updateSecretSchema.safeParseAsync({
       body: req.body,
-      params: req.params
-    })
+      params: req.params,
+    });
 
     if (!result.success) {
       const error = z.treeifyError(result.error);
 
       return res.status(400).json({
         status: "fail",
-        data: error.properties
-      })
+        data: error.properties,
+      });
     }
 
     const output = await this.secretService.updateSecret(result.data);
@@ -112,8 +180,8 @@ export class SecretController {
     return res.status(200).json({
       status: "success",
       data: {
-        updatedSecret: output
-      }
-    })
+        updatedSecret: output,
+      },
+    });
   }
 }

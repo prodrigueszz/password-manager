@@ -1,9 +1,13 @@
 export type SecretsProps = {
   id: string;
   site: string;
-  login_identifier: string;
-  password: string;
-  owner_id: string;
+  loginIdentifier: string;
+  ciphertext: string;
+  iv: string;
+  authTag: string;
+  createdAt: Date;
+  updatedAt: Date;
+  ownerId: string;
 };
 
 export class Secret {
@@ -12,11 +16,25 @@ export class Secret {
   public static build(
     id: string,
     site: string,
-    login_identifier: string,
-    password: string,
-    owner_id: string
+    loginIdentifier: string,
+    ciphertext: string,
+    iv: string,
+    authTag: string,
+    createdAt: Date,
+    updatedAt: Date,
+    ownerId: string
   ) {
-    return new Secret({ id, site, login_identifier, password, owner_id });
+    return new Secret({ 
+      id, 
+      site, 
+      loginIdentifier, 
+      ciphertext, 
+      iv, 
+      authTag,
+      createdAt,
+      updatedAt,
+      ownerId 
+    });
   }
 
   get id() {
@@ -27,15 +45,31 @@ export class Secret {
     return this.props.site;
   }
 
-  get login_identifier() {
-    return this.props.login_identifier;
+  get loginIdentifier() {
+    return this.props.loginIdentifier;
   }
 
-  get password() {
-    return this.props.password;
+  get ciphertext() {
+    return this.props.ciphertext;
   }
 
-  get owner_id() {
-    return this.props.owner_id;
+  get iv() {
+    return this.props.iv;
+  }
+
+  get authTag() {
+    return this.props.authTag;
+  }
+
+  get ownerId() {
+    return this.props.ownerId;
+  }
+
+  get createdAt() {
+    return this.props.createdAt;
+  }
+
+  get updatedAt() {
+    return this.props.updatedAt;
   }
 }

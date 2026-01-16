@@ -6,13 +6,16 @@ export class SecretService {
   constructor(private readonly secretRepository: SecretRepository) {}
   
   async saveNewSecret(data: CreateSecretInputDTO): Promise<CreateSecretOutputDTO> {
-    
     const newSecret = Secret.build(
       "",
       data.site,
-      data.login_identifier,
-      data.password,
-      data.owner_id
+      data.loginIdentifier,
+      data.ciphertext,
+      data.iv,
+      data.authTag,
+      new Date(),
+      new Date(),
+      data.ownerId
     );
     
     const id = await this.secretRepository.save(newSecret);
@@ -20,64 +23,86 @@ export class SecretService {
     return { id };
   }
   
-  // getAllByOwner(owner_id: string): Promise<Secret[] | null>;
-  // getBySiteName(owner_id: string, site: string): Promise<Secret | null>;
   async findSecret(data: FindSecretInputDTO): Promise<FindSecretOutputDTO[] | FindSecretOutputDTO | null> {
     if (data.site) {
-      const secret = await this.secretRepository.getBySiteName(data.owner_id, data.site);
+      const secret = await this.secretRepository.getBySiteName(data.ownerId, data.site);
       return secret ? {
         id: secret.id,
         site: secret.site,
-        login_identifier: secret.login_identifier,
-        password: secret.password,
-        owner_id: secret.owner_id
-      } : secret
+        loginIdentifier: secret.loginIdentifier,
+        ciphertext: secret.ciphertext,
+        iv: secret.iv,
+        authTag: secret.authTag,
+        createdAt: secret.createdAt,
+        updatedAt: secret.updatedAt,
+        ownerId: secret.ownerId
+      } : null;
     }
 
-    const secretsList = await this.secretRepository.getAllByOwner(data.owner_id);
-    return secretsList ? secretsList.map(secret => {
+    const secretsList = await this.secretRepository.getAllByOwner(data.ownerId);
+    return secretsList.map(secret => {
       return {
         id: secret.id,
         site: secret.site,
-        login_identifier: secret.login_identifier,
-        password: secret.password,
-        owner_id: secret.owner_id
-      }
-    }) : secretsList
+        loginIdentifier: secret.loginIdentifier,
+        ciphertext: secret.ciphertext,
+        iv: secret.iv,
+        authTag: secret.authTag,
+        createdAt: secret.createdAt,
+        updatedAt: secret.updatedAt,
+        ownerId: secret.ownerId
+      };
+    });
   }
 
-  // deleteById(owner_id: string, id: string): Promise<void>;
   async deleteSecret(data: DeleteSecretInputDTO): Promise<void> {
-    await this.secretRepository.deleteById(data.id, data.id);
+    await this.secretRepository.deleteById(data.ownerId, data.id);
   }
 
-  // updateById(owner_id: string, id: string, data: UpdateSecretData): Promise<void>;
   async updateSecret(data: UpdateSecretInputDTO): Promise<UpdateSecretOutputDTO> {
     const { id, ...attrsToUpdate } = data.body;
 
-    const createUpdateData = (password?: string | undefined, login?: string | undefined) => {
-      const data: UpdateSecretData = {}
+    const createUpdateData = (
+      loginIdentifier?: string,
+      ciphertext?: string,
+      iv?: string,
+      authTag?: string
+    ): UpdateSecretData => {
+      const updateData: UpdateSecretData = {};
 
-      if (password !== undefined) {
-        data.password = password;
-      } 
-      if (login !== undefined) {
-        data.login_identifier = login;
+      if (loginIdentifier !== undefined) {
+        updateData.loginIdentifier = loginIdentifier;
+      }
+      if (ciphertext !== undefined) {
+        updateData.ciphertext = ciphertext;
+      }
+      if (iv !== undefined) {
+        updateData.iv = iv;
+      }
+      if (authTag !== undefined) {
+        updateData.authTag = authTag;
       }
 
-      return data;
-    }
+      return updateData;
+    };
 
     await this.secretRepository.updateById(
-      data.params.id, 
+      data.params.ownerId,
       data.body.id,
-      createUpdateData(attrsToUpdate.password, attrsToUpdate.login_identifier) 
-    )
+      createUpdateData(
+        attrsToUpdate.loginIdentifier,
+        attrsToUpdate.ciphertext,
+        attrsToUpdate.iv,
+        attrsToUpdate.authTag
+      )
+    );
 
     return {
       id,
-      password: attrsToUpdate.password,
-      login_identifier: attrsToUpdate.login_identifier
-    }
+      loginIdentifier: attrsToUpdate.loginIdentifier,
+      ciphertext: attrsToUpdate.ciphertext,
+      iv: attrsToUpdate.iv,
+      authTag: attrsToUpdate.authTag
+    };
   }
 }

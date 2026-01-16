@@ -1,18 +1,14 @@
 import { z } from "zod";
-import { userSchema } from "./user.schema";
+import { userSchema, updateUserSchema, createUserSchema } from "./user.schema";
 
-export type CreateUserInputDTO = Omit<z.infer<typeof userSchema>, "id">;
+export type CreateUserInputDTO = z.infer<typeof createUserSchema>;
 export type CreateUserOutputDTO = z.infer<typeof userSchema>["id"];
 
 export type GetUserInputDTO = z.infer<typeof userSchema>["id"];
-export type GetUserOutputDTO = Omit<z.infer<typeof userSchema>, "id">;
+export type GetUserOutputDTO = z.infer<typeof userSchema>;
 
-export type DeleteUserDTO = Omit<z.infer<typeof userSchema>, "password">;
+export type DeleteUserDTO = Omit<z.infer<typeof userSchema>, "password" | "masterKeySalt">;
 
-export type UpdateUserInputDTO = {
-  name?: string,
-  email?: string,
-  password?: string,
-};
+export type UpdateUserInputDTO = z.infer<typeof updateUserSchema>["body"];
 
-export type UpdateUserOutputDTO = Omit<z.infer<typeof userSchema>, "id" | "password">
+export type UpdateUserOutputDTO = Omit<z.infer<typeof userSchema>, "id" | "password" | "role" | "masterKeySalt">;

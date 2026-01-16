@@ -1,133 +1,139 @@
-import { NextFunction, Request, Response } from "express";
+import { Request, Response } from "express";
 import { UserService } from "./user.service";
+import { createUserSchema, getUserSchema, updateUserSchema, deleteUserSchema } from "./user.schema";
+import z from "zod";
 
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  public async createNewUser(req: Request, res: Response) {
-    const { name, email, password } = req.body;
+  async createNewUser(req: Request, res: Response) {
+    const result = await createUserSchema.safeParseAsync(req.body);
+
+    if (!result.success) {
+      const error = z.treeifyError(result.error);
+
+      return res.status(400).json({
+        status: "fail",
+        data: error.properties,
+      });
+    }
+
+    const { name, email, password } = result.data;
 
     const existingUser = await this.userService.findUserByEmail(email);
     if (existingUser) {
       return res.status(409).json({
         status: "fail",
         data: {
-          message: "User already exists"
-        }
-      })
-    }
-
-    try {
-      const data = {
-        name,
-        email,
-        password,
-      };
-
-      const id = await this.userService.saveNewUser(data);
-
-      res.status(201).json({
-        status: "success",
-        data: {
-          user: {
-            id,
-          },
+          message: "User already exists",
         },
       });
-    } catch (error) {
-      res.status(400).json({
-        status: "error",
-        message: error instanceof Error ? error.message : "Erro ao criar usuário"
-      });
     }
+
+    const id = await this.userService.saveNewUser({ name, email, password });
+
+    return res.status(201).json({
+      status: "success",
+      data: {
+        id,
+      },
+    });
   }
 
-  public async findUser(req: Request, res: Response) {
-    const { id } = req.params;
+  async findUser(req: Request, res: Response) {
+    const result = await getUserSchema.safeParseAsync(req.params);
 
-    try {
-      const user = id ? await this.userService.findUserById(id) : null;
-      res.status(200).json({
-        status: "success",
-        data: {
-          user,
-        },
-      });
-    } catch (e) {
-      res.status(404).json({
-        status: "fail",
-        message: "Usuário não encontrado"
-      });
-    }
-  }
+    if (!result.success) {
+      const error = z.treeifyError(result.error);
 
-  public async getAllUsers(req: Request, res: Response) {
-    try {
-      const users = await this.userService.getAllUsers();
-      res.status(200).json({
-        status: "success",
-        data: {
-          users,
-        },
-      });
-    } catch (error) {
-      res.status(500).json({
-        status: "error",
-        message: "Erro interno do servidor"
-      });
-    }
-  }
-
-  public async updateUser(req: Request, res: Response) {
-    const { id } = req.params;
-    const updateData = req.body;
-
-    if (!id) {
       return res.status(400).json({
         status: "fail",
-        message: "ID do usuário é obrigatório"
+        data: error.properties,
       });
     }
 
-    try {
-      const updatedUser = await this.userService.updateUser(id, updateData);
-      res.status(200).json({
-        status: "success",
+    const user = await this.userService.findUserById(result.data.id);
+
+    if (!user) {
+      return res.status(404).json({
+        status: "fail",
         data: {
-          user: updatedUser,
+          message: "Usuário não encontrado",
         },
       });
-    } catch (error) {
-      res.status(404).json({
-        status: "fail",
-        message: "Usuário não encontrado ou não foi possível atualizar"
-      });
     }
+
+    return res.status(200).json({
+      status: "success",
+      data: user,
+    });
   }
 
-  public async deleteUser(req: Request, res: Response) {
-    const { id } = req.params;
+  async getAllUsers(req: Request, res: Response) {
+    const users = await this.userService.getAllUsers();
 
-    if (!id) {
+    return res.status(200).json({
+      status: "success",
+      data: users,
+    });
+  }
+
+  async updateUser(req: Request, res: Response) {
+    const result = await updateUserSchema.safeParseAsync({
+      body: req.body,
+      params: req.params,
+    });
+
+    if (!result.success) {
+      const error = z.treeifyError(result.error);
+
       return res.status(400).json({
         status: "fail",
-        message: "ID do usuário é obrigatório"
+        data: error.properties,
       });
     }
 
-    try {
-      const deletedUser = await this.userService.deleteUser(id);
-      res.status(200).json({
-        status: "success",
+    const updatedUser = await this.userService.updateUser(
+      result.data.params.id,
+      result.data.body
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({
+        status: "fail",
         data: {
-          user: deletedUser,
+          message: "Usuário não encontrado ou não foi possível atualizar",
         },
       });
-    } catch (error) {
-      res.status(404).json({
+    }
+
+    return res.status(200).json({
+      status: "success",
+      data: {
+        updatedUser,
+      },
+    });
+  }
+
+  async deleteUser(req: Request, res: Response) {
+    const result = await deleteUserSchema.safeParseAsync(req.params);
+
+    if (!result.success) {
+      const error = z.treeifyError(result.error);
+
+      return res.status(400).json({
         status: "fail",
-        message: "Usuário não encontrado ou não foi possível deletar"
+        data: error.properties,
       });
     }
+
+    const deletedUser = await this.userService.deleteUser(result.data.id);
+
+    return res.status(200).json({
+      status: "success",
+      data: {
+        deletedUser,
+      },
+    });
   }
 }

@@ -3,8 +3,8 @@ import { Secret } from "./secrets";
 
 export interface SecretRepository {
   save(secret: Secret): Promise<string>;
-  getAllByOwner(owner_id: string): Promise<Secret[] | null>;
-  getBySiteName(owner_id: string, site: string): Promise<Secret | null>;
-  deleteById(owner_id: string, id: string): Promise<void>;
-  updateById(owner_id: string, id: string, data: UpdateSecretData): Promise<void>;
+  getAllByOwner(ownerId: string): Promise<Secret[]>;
+  getBySiteName(ownerId: string, site: string): Promise<Secret | null>;
+  deleteById(ownerId: string, id: string): Promise<void>;
+  updateById(ownerId: string, id: string, data: UpdateSecretData): Promise<void>;
 }

@@ -1,7 +1,12 @@
+import { promisify } from "util";
+import { Role } from "../generated/prisma/enums";
 import { User } from "./user";
 import { CreateUserInputDTO, CreateUserOutputDTO, GetUserInputDTO, GetUserOutputDTO, UpdateUserInputDTO, UpdateUserOutputDTO, DeleteUserDTO } from "./user.dto";
 import { UserRepository } from "./user.repository";
-import { hash } from 'bcrypt';
+import { hash, genSalt } from "bcrypt";
+import { randomBytes } from "crypto";
+
+const asyncRandomBytes = promisify(randomBytes);
 
 export class UserService {
   constructor(private readonly userRepository: UserRepository) {}
@@ -9,28 +14,30 @@ export class UserService {
   async saveNewUser(data: CreateUserInputDTO): Promise<CreateUserOutputDTO> {
     const { name, email, password } = data;
 
-    const salt = 10;
+    const salt = await genSalt(10);
     const hashedPassword = await hash(password, salt);
+    const masterKeySalt = await asyncRandomBytes(16).toString();
 
-    const newUser = User.create(name, email, hashedPassword);
+    const newUser = User.build("", name, email, hashedPassword, Role.USUARIO, masterKeySalt);
     const output = await this.userRepository.save(newUser);
 
     return output;
   }
 
-  async findUserById(data: GetUserInputDTO): Promise<GetUserOutputDTO> {
+  async findUserById(data: GetUserInputDTO): Promise<GetUserOutputDTO | null> {
     const user = await this.userRepository.getById(data);
     if (!user) {
-      throw new Error("Usuário não encontrado");
+      return null;
     }
 
-    const output = {
+    return {
+      id: user.id,
       name: user.name,
       email: user.email,
-      password: user.password
-    }
-
-    return output;
+      password: user.password,
+      role: user.role,
+      masterKeySalt: user.masterKeySalt
+    };
   }
 
   async findUserByEmail(email: string): Promise<User | null> {
@@ -40,18 +47,18 @@ export class UserService {
 
   async getAllUsers(): Promise<GetUserOutputDTO[]> {
     const users = await this.userRepository.getAllUsers();
-    return users.map(user => ({
+    return users.map((user) => ({
+      id: user.id,
       name: user.name,
       email: user.email,
-      password: user.password
+      password: user.password,
+      role: user.role,
+      masterKeySalt: user.masterKeySalt
     }));
   }
 
-  async updateUser(id: string, data: UpdateUserInputDTO): Promise<UpdateUserOutputDTO> {
+  async updateUser(id: string, data: UpdateUserInputDTO): Promise<UpdateUserOutputDTO | null> {
     const updatedUser = await this.userRepository.updateUserById(id, data);
-    if (!updatedUser) {
-      throw new Error("Usuário não encontrado ou não foi possível atualizar");
-    }
     return updatedUser;
   }
 

@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { Role } from "../generated/prisma/enums";
+
+export const roleEnum = z.enum([Role.ADMIN, Role.USUARIO]);
 
 export const userSchema = z.object({
   id: z.uuid({ error: "O id é um uuid" }),
@@ -21,6 +24,8 @@ export const userSchema = z.object({
     .regex(/[!#@$%&]/, {
       error: "Este campo deve conter pelo menos 1 caractere especial",
     }),
+  role: roleEnum,
+  masterKeySalt: z.string(),
 });
 
 export const createUserSchema = z.object({
@@ -79,7 +84,7 @@ export const updateUserSchema = z.object({
     message: "Pelo menos um campo deve ser fornecido para atualização"
   }),
   params: z.object({
-    id: z.string().uuid({ message: "O id deve ser um UUID válido" })
+    id: z.uuid({ message: "O id deve ser um UUID válido" })
   })
 });
 
